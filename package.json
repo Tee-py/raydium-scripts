@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "compile": "tsc -p ./tsconfig.json",
-    "script": "ts-node src/script.ts",
+    "script": "ts-node src/main.ts",
     "fetchMarket": "ts-node src/fetchMarket.ts"
   },
   "dependencies": {
