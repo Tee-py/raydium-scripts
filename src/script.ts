@@ -1,4 +1,4 @@
-import {Connection, Keypair, PublicKey, SystemProgram, Transaction, TransactionInstruction,} from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import {
     Liquidity, LiquidityPoolInfo,
     LiquidityPoolKeys,
@@ -8,7 +8,7 @@ import {
     TokenAmount, WSOL,
 } from "@raydium-io/raydium-sdk";
 import BN from "bn.js";
-import {getKeypair, ExecuteKeyPair, getExecuteKeyPairInfo} from "./utils";
+import { ExecuteKeyPair, getExecuteKeyPairInfo } from "./utils";
 import { MAINNET_RPC_URL } from "./constants";
 import fs from "fs"
 import { createWrappedNativeAccount, getOrCreateAssociatedTokenAccount, createSyncNativeInstruction, NATIVE_MINT } from "@solana/spl-token";
@@ -288,12 +288,15 @@ const makeAddLiquidityInstruction = async (
 const executeTransaction = async (
     connection: Connection,
     tokenToBuy: string,
-    rawAmountIn: number,
-    slippage: number,
-    rawPoolKey: string,
+    rawSwapAmountIn: number,
+    swapSlippage: number,
+    liquidityInputToken: string,
+    liquidityInputTokenAmount: number,
+    liquiditySlippage: number,
+    poolMarketId: string,
     keyPairInfo: ExecuteKeyPair
 ) => {
-    const poolKeys = await getPoolInfo(rawPoolKey);
+    const poolKeys = await getPoolInfo(poolMarketId);
     const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
     const txn = new Transaction();
     for (const keypair of keyPairInfo.buy) {
@@ -308,8 +311,8 @@ const executeTransaction = async (
         } = await makeSwapInstruction(
             connection,
             tokenToBuy,
-            rawAmountIn,
-            slippage,
+            rawSwapAmountIn,
+            swapSlippage,
             poolKeys,
             poolInfo,
             keypair
@@ -350,9 +353,9 @@ const executeTransaction = async (
         connection,
         poolKeys,
         poolInfo,
-        WSOL.mint,
-        0.022,
-        2,
+        liquidityInputToken,
+        liquidityInputTokenAmount,
+        liquiditySlippage,
         keyPairInfo.liquidity
     )
     console.log("About to Add Liquidity")
@@ -385,11 +388,21 @@ const executeTransaction = async (
 }
 
 const keypairInfo = getExecuteKeyPairInfo(["wallet"], "wallet");
+const TOKEN_TO_BUY_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+const SWAP_AMOUNT = 0.04
+const SWAP_SLIPPAGE = 5
+const LIQUIDITY_INPUT_TOKEN_MINT = WSOL.mint
+const LIQUIDITY_INPUT_TOKEN_AMOUNT = 0.02
+const LIQUIDITY_SLIPPAGE = 2
+const POOL_MARKET_ID = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"
 executeTransaction(
     new Connection(MAINNET_RPC_URL, "confirmed"),
-    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-    0.025,
-    5,
-    "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
+    TOKEN_TO_BUY_MINT,
+    SWAP_AMOUNT,
+    SWAP_SLIPPAGE,
+    LIQUIDITY_INPUT_TOKEN_MINT,
+    LIQUIDITY_INPUT_TOKEN_AMOUNT,
+    LIQUIDITY_SLIPPAGE,
+    POOL_MARKET_ID,
     keypairInfo
 ).then((val) => console.log(val))
