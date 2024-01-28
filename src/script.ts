@@ -13,6 +13,11 @@ import { MAINNET_RPC_URL } from "./constants";
 import fs from "fs"
 import { createWrappedNativeAccount, getOrCreateAssociatedTokenAccount, createSyncNativeInstruction, NATIVE_MINT } from "@solana/spl-token";
 
+interface ExecuteKeyPair {
+    buy: Keypair[],
+    liquidity: Keypair
+}
+
 const getPoolInfo = async (poolId: string) => {
     const poolKeysJson = JSON.parse(fs.readFileSync(`pool_info/${poolId}.json`) as unknown as string)
     return {
@@ -291,27 +296,53 @@ const executeTransaction = async (
     rawAmountIn: number,
     slippage: number,
     rawPoolKey: string,
-    ownerKeyPair: Keypair
+    keyPairInfo: ExecuteKeyPair
 ) => {
     const poolKeys = await getPoolInfo(rawPoolKey);
     const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
-    const {
-        swapIX,
-        tokenInAccount,
-        tokenOutAccount,
-        tokenIn,
-        tokenOut,
-        amountIn,
-        minAmountOut
-    } = await makeSwapInstruction(
-        connection,
-        tokenToBuy,
-        rawAmountIn,
-        slippage,
-        poolKeys,
-        poolInfo,
-        ownerKeyPair
-    )
+    const txn = new Transaction();
+    for (const keypair of keyPairInfo.buy) {
+        const {
+            swapIX,
+            tokenInAccount,
+            tokenOutAccount,
+            tokenIn,
+            tokenOut,
+            amountIn,
+            minAmountOut
+        } = await makeSwapInstruction(
+            connection,
+            tokenToBuy,
+            rawAmountIn,
+            slippage,
+            poolKeys,
+            poolInfo,
+            keypair
+        )
+        if (tokenIn.toString() == WSOL.mint) {
+            console.log("adding native sol account to tokenin")
+            txn.add(
+                SystemProgram.transfer({
+                    fromPubkey: keypair.publicKey,
+                    toPubkey: tokenInAccount,
+                    lamports: amountIn.raw.toNumber(),
+                }),
+                createSyncNativeInstruction(tokenInAccount, TOKEN_PROGRAM_ID),
+            )
+        }
+
+        if (tokenOut.toString() == WSOL.mint) {
+            txn.add(
+                SystemProgram.transfer({
+                    fromPubkey: keypair.publicKey,
+                    toPubkey: tokenOutAccount,
+                    lamports: minAmountOut.raw.toNumber(),
+                }),
+                createSyncNativeInstruction(tokenOutAccount, TOKEN_PROGRAM_ID),
+            )
+        }
+        txn.add(swapIX);
+    }
     const {
         addLiqIX,
         amountA,
@@ -327,37 +358,13 @@ const executeTransaction = async (
         WSOL.mint,
         0.022,
         2,
-        ownerKeyPair
+        keyPairInfo.liquidity
     )
     console.log("About to Add Liquidity")
-    const txn = new Transaction();
-    if (tokenIn.toString() == WSOL.mint) {
-        console.log("adding native sol account to tokenin")
-        txn.add(
-            SystemProgram.transfer({
-                fromPubkey: ownerKeyPair.publicKey,
-                toPubkey: tokenInAccount,
-                lamports: amountIn.raw.toNumber(),
-            }),
-            createSyncNativeInstruction(tokenInAccount, TOKEN_PROGRAM_ID),
-        )
-    }
-
-    if (tokenOut.toString() == WSOL.mint) {
-        txn.add(
-            SystemProgram.transfer({
-                fromPubkey: ownerKeyPair.publicKey,
-                toPubkey: tokenOutAccount,
-                lamports: minAmountOut.raw.toNumber(),
-            }),
-            createSyncNativeInstruction(tokenOutAccount, TOKEN_PROGRAM_ID),
-        )
-    }
-    txn.add(swapIX);
     if (tokenA.mint.toString() == WSOL.mint) {
         txn.add(
             SystemProgram.transfer({
-                fromPubkey: ownerKeyPair.publicKey,
+                fromPubkey: keyPairInfo.liquidity.publicKey,
                 toPubkey: tokenAAccount,
                 lamports: amountA.raw.toNumber(),
             }),
@@ -367,7 +374,7 @@ const executeTransaction = async (
     if (tokenB.mint.toString() == WSOL.mint) {
         txn.add(
             SystemProgram.transfer({
-                fromPubkey: ownerKeyPair.publicKey,
+                fromPubkey: keyPairInfo.liquidity.publicKey,
                 toPubkey: tokenBAccount,
                 lamports: amountB.raw.toNumber(),
             }),
@@ -377,16 +384,17 @@ const executeTransaction = async (
     txn.add(addLiqIX)
     await connection.sendTransaction(
         txn,
-        [ownerKeyPair],
+        [...keyPairInfo.buy, keyPairInfo.liquidity],
         { skipPreflight: false, preflightCommitment: "confirmed"}
     )
 }
 
-executeTransaction(
-    new Connection(MAINNET_RPC_URL, "confirmed"),
-    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-    0.025,
-    5,
-    "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
-    getKeypair("wallet")
-).then((val) => console.log(val))
+// executeTransaction(
+//     new Connection(MAINNET_RPC_URL, "confirmed"),
+//     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+//     0.025,
+//     5,
+//     "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
+//     ["w
+//     //getKeypair("wallet")
+// ).then((val) => console.log(val))
