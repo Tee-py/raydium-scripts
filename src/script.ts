@@ -8,15 +8,10 @@ import {
     TokenAmount, WSOL,
 } from "@raydium-io/raydium-sdk";
 import BN from "bn.js";
-import { getKeypair } from "./utils";
+import {getKeypair, ExecuteKeyPair, getExecuteKeyPairInfo} from "./utils";
 import { MAINNET_RPC_URL } from "./constants";
 import fs from "fs"
 import { createWrappedNativeAccount, getOrCreateAssociatedTokenAccount, createSyncNativeInstruction, NATIVE_MINT } from "@solana/spl-token";
-
-interface ExecuteKeyPair {
-    buy: Keypair[],
-    liquidity: Keypair
-}
 
 const getPoolInfo = async (poolId: string) => {
     const poolKeysJson = JSON.parse(fs.readFileSync(`pool_info/${poolId}.json`) as unknown as string)
@@ -389,12 +384,12 @@ const executeTransaction = async (
     )
 }
 
-// executeTransaction(
-//     new Connection(MAINNET_RPC_URL, "confirmed"),
-//     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-//     0.025,
-//     5,
-//     "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
-//     ["w
-//     //getKeypair("wallet")
-// ).then((val) => console.log(val))
+const keypairInfo = getExecuteKeyPairInfo(["wallet"], "wallet");
+executeTransaction(
+    new Connection(MAINNET_RPC_URL, "confirmed"),
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    0.025,
+    5,
+    "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
+    keypairInfo
+).then((val) => console.log(val))

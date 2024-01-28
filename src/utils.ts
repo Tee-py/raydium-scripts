@@ -1,6 +1,11 @@
 import {Keypair, PublicKey} from "@solana/web3.js";
 import fs from "fs";
 
+export interface ExecuteKeyPair {
+    buy: Keypair[],
+    liquidity: Keypair
+}
+
 export const getPublicKey = (name: string) =>
     new PublicKey(
         JSON.parse(fs.readFileSync(`./keys/${name}_pub.json`) as unknown as string)
@@ -27,3 +32,15 @@ export const fetchAndSavePoolInfo = async (marketId: string, jsonUrl: string) =>
         JSON.stringify(poolKeysJson)
     );
 }
+
+export const getExecuteKeyPairInfo = (buyFiles: string[], liquidityFile: string): ExecuteKeyPair => {
+    const buyKeyPairs = [];
+    for (const file in buyFiles) {
+        buyKeyPairs.push(getKeypair(file))
+    }
+    return {
+        buy: buyKeyPairs,
+        liquidity: getKeypair(liquidityFile)
+    }
+}
+
