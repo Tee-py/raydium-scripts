@@ -1,6 +1,6 @@
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import {
-    Liquidity, LiquidityPoolInfo,
+    Liquidity, LiquidityPoolInfo, LiquidityPoolJsonInfo,
     LiquidityPoolKeys,
     Percent,
     Token,
@@ -14,35 +14,14 @@ import fs from "fs"
 import { createWrappedNativeAccount, getOrCreateAssociatedTokenAccount, createSyncNativeInstruction, NATIVE_MINT } from "@solana/spl-token";
 
 const getPoolInfo = async (poolId: string) => {
-    const poolKeysJson = JSON.parse(fs.readFileSync(`pool_info/${poolId}.json`) as unknown as string)
-    return {
-        id: new PublicKey(poolKeysJson.id),
-        baseMint: new PublicKey(poolKeysJson.baseMint),
-        quoteMint: new PublicKey(poolKeysJson.quoteMint),
-        lpMint: new PublicKey(poolKeysJson.lpMint),
-        baseDecimals: poolKeysJson.baseDecimals,
-        quoteDecimals: poolKeysJson.quoteDecimals,
-        lpDecimals: poolKeysJson.lpDecimals,
-        version: poolKeysJson.version,
-        programId: poolKeysJson.programId,
-        authority: new PublicKey(poolKeysJson.authority),
-        baseVault: new PublicKey(poolKeysJson.baseVault),
-        quoteVault: new PublicKey(poolKeysJson.quoteVault),
-        lpVault: new PublicKey(poolKeysJson.lpVault),
-        openOrders: new PublicKey(poolKeysJson.openOrders),
-        targetOrders: new PublicKey(poolKeysJson.targetOrders),
-        withdrawQueue: new PublicKey(poolKeysJson.withdrawQueue),
-        marketVersion: poolKeysJson.marketVersion,
-        marketProgramId: new PublicKey(poolKeysJson.marketProgramId),
-        marketId: new PublicKey(poolKeysJson.marketId),
-        marketAuthority: new PublicKey(poolKeysJson.marketAuthority),
-        marketBaseVault: new PublicKey(poolKeysJson.marketBaseVault),
-        marketQuoteVault: new PublicKey(poolKeysJson.marketQuoteVault),
-        marketBids: new PublicKey(poolKeysJson.marketBids),
-        marketAsks: new PublicKey(poolKeysJson.marketAsks),
-        marketEventQueue: new PublicKey(poolKeysJson.marketEventQueue),
-        lookupTableAccount: new PublicKey(poolKeysJson.lookupTableAccount)
+    type Data = {[key: string]: any}
+    const poolKeysJson: Data = JSON.parse(fs.readFileSync(`pool_info/${poolId}.json`) as unknown as string)
+    for (const [key, value] of Object.entries(poolKeysJson)){
+        if (typeof  value === "string"){
+            poolKeysJson[key] = new PublicKey(poolKeysJson[key])
+        }
     }
+    return poolKeysJson as LiquidityPoolKeys
 }
 
 const calculateAmountOut = async (
