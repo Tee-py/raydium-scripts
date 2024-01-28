@@ -11,9 +11,9 @@ import BN from "bn.js";
 import { getKeypair } from "./utils";
 import { MAINNET_RPC_URL } from "./constants";
 import fs from "fs"
-import {createWrappedNativeAccount, getOrCreateAssociatedTokenAccount, createSyncNativeInstruction, NATIVE_MINT} from "@solana/spl-token";
+import { createWrappedNativeAccount, getOrCreateAssociatedTokenAccount, createSyncNativeInstruction, NATIVE_MINT } from "@solana/spl-token";
 
-const getPoolInfo = async (poolId: string, raydiumLiquidityJson: string) => {
+const getPoolInfo = async (poolId: string) => {
     const poolKeysJson = JSON.parse(fs.readFileSync(`pool_info/${poolId}.json`) as unknown as string)
     return {
         id: new PublicKey(poolKeysJson.id),
@@ -46,7 +46,6 @@ const getPoolInfo = async (poolId: string, raydiumLiquidityJson: string) => {
 }
 
 const calculateAmountOut = async (
-    connection: Connection,
     poolKeys: LiquidityPoolKeys,
     poolInfo: LiquidityPoolInfo,
     tokenToBuy: string,
@@ -87,7 +86,6 @@ const makeSwapInstruction = async (
         tokenOut,
         minAmountOut
     } = await calculateAmountOut(
-        connection,
         poolKeys,
         poolInfo,
         tokenToBuy,
@@ -103,7 +101,6 @@ const makeSwapInstruction = async (
             ownerKeyPair,
             NATIVE_MINT,
             ownerKeyPair.publicKey,
-            //amountIn.raw.toNumber()
         )).address;
         console.log('Created Wrapped SOL Token Account')
         tokenOutAccount = (await getOrCreateAssociatedTokenAccount(
@@ -196,7 +193,6 @@ const makeAddLiquidityInstruction = async (
     const slippage = new Percent(rawSlippage, 100); // 'rawValue/100 %'
     const {
         maxAnotherAmount,
-        anotherAmount
     } = Liquidity.computeAnotherAmount({
         poolKeys: poolKey,
         poolInfo,
@@ -295,10 +291,9 @@ const executeTransaction = async (
     rawAmountIn: number,
     slippage: number,
     rawPoolKey: string,
-    liquidityJsonUrl: string,
     ownerKeyPair: Keypair
 ) => {
-    const poolKeys = await getPoolInfo(rawPoolKey, liquidityJsonUrl);
+    const poolKeys = await getPoolInfo(rawPoolKey);
     const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
     const {
         swapIX,
@@ -393,11 +388,5 @@ executeTransaction(
     0.025,
     5,
     "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
-    "https://api.raydium.io/v2/sdk/liquidity/mainnet.json",
     getKeypair("wallet")
 ).then((val) => console.log(val))
-
-getPoolInfo(
-    "AdrYYii5M4j3C3LCSswkBFT8BxrwqsC9mktk1r75fLLM",
-   "https://api.raydium.io/v2/sdk/liquidity/mainnet.json"
-)

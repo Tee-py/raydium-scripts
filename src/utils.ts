@@ -17,7 +17,7 @@ export const getKeypair = (name: string) =>
         secretKey: getPrivateKey(name),
     });
 
-const fetchAndSavePoolInfo = async (marketId: string, jsonUrl: string) => {
+export const fetchAndSavePoolInfo = async (marketId: string, jsonUrl: string) => {
     const liquidityJsonResp = await fetch(jsonUrl);
     const liquidityJson = await liquidityJsonResp.json();
     const allPoolKeysJson = [...(liquidityJson?.official ?? []), ...(liquidityJson?.unOfficial ?? [])]
