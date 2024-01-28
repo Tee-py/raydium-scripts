@@ -13,17 +13,6 @@ import { MAINNET_RPC_URL } from "./constants";
 import fs from "fs"
 import {createWrappedNativeAccount, getOrCreateAssociatedTokenAccount, createSyncNativeInstruction, NATIVE_MINT} from "@solana/spl-token";
 
-
-const fetchAndSavePoolInfo = async (marketId: string, jsonUrl: string) => {
-    const liquidityJsonResp = await fetch(jsonUrl);
-    const liquidityJson = await liquidityJsonResp.json();
-    const allPoolKeysJson = [...(liquidityJson?.official ?? []), ...(liquidityJson?.unOfficial ?? [])]
-    const poolKeysJson = allPoolKeysJson.filter((item) => item.marketId === marketId)?.[0] || null;
-    fs.writeFileSync(
-        `pool_info/${marketId}.json`,
-        JSON.stringify(poolKeysJson)
-    );
-}
 const getPoolInfo = async (poolId: string, raydiumLiquidityJson: string) => {
     const poolKeysJson = JSON.parse(fs.readFileSync(`pool_info/${poolId}.json`) as unknown as string)
     return {
