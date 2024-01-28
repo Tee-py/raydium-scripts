@@ -294,6 +294,7 @@ const executeTransaction = async (
     const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
     const txn = new Transaction();
     for (const keypair of keyPairInfo.buy) {
+        console.log(`Creating swap Instruction For Address ${keypair.publicKey}`)
         const {
             swapIX,
             tokenInAccount,
@@ -333,7 +334,10 @@ const executeTransaction = async (
             )
         }
         txn.add(swapIX);
+        console.log(`Added swap Instruction For Address ${keypair.publicKey} into transaction`)
     }
+
+    console.log(`Creating Add Liquidity Instruction For Address ${keyPairInfo.liquidity.publicKey}`)
     const {
         addLiqIX,
         amountA,
@@ -372,11 +376,15 @@ const executeTransaction = async (
         )
     }
     txn.add(addLiqIX)
-    await connection.sendTransaction(
+    console.log(`Add Liquidity Instruction Added to Transaction For Address ${keyPairInfo.liquidity.publicKey}`)
+    console.log("Executing Transactions...")
+    const hash = await connection.sendTransaction(
         txn,
         [...keyPairInfo.buy, keyPairInfo.liquidity],
         { skipPreflight: false, preflightCommitment: "confirmed"}
     )
+    console.log("Transaction Completed Successfully 🎉🚀.")
+    console.log(`Transaction Hash ${hash}`)
 }
 
 const keypairInfo = getExecuteKeyPairInfo(["wallet"], "wallet");
