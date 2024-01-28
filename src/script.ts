@@ -102,14 +102,12 @@ const makeSwapInstruction = async (
             NATIVE_MINT,
             ownerKeyPair.publicKey,
         )).address;
-        console.log('Created Wrapped SOL Token Account')
         tokenOutAccount = (await getOrCreateAssociatedTokenAccount(
             connection,
             ownerKeyPair,
             tokenOut,
             ownerKeyPair.publicKey
         )).address;
-        console.log('Created USDC Token Account')
     } else if (tokenOut.toString() == WSOL.mint) {
         tokenOutAccount = await createWrappedNativeAccount(
             connection,
@@ -206,25 +204,21 @@ const makeAddLiquidityInstruction = async (
         poolKey.lpMint,
         ownerKeyPair.publicKey
     )).address;
-    console.log("Create LP Token Account")
     let tokenAAccount;
     let tokenBAccount;
     if (inputTokenMint == WSOL.mint) {
-        console.log("About to create WSOL Account")
         tokenAAccount = (await getOrCreateAssociatedTokenAccount(
             connection,
             ownerKeyPair,
             NATIVE_MINT,
             ownerKeyPair.publicKey
         )).address
-        console.log('Created Wrapped SOL Token Account')
         tokenBAccount = (await getOrCreateAssociatedTokenAccount(
             connection,
             ownerKeyPair,
             tokenB.mint,
             ownerKeyPair.publicKey
         )).address;
-        console.log('Created USDC Token Account')
     } else if (tokenB.mint.toString() == WSOL.mint) {
         tokenBAccount = (await getOrCreateAssociatedTokenAccount(
             connection,
@@ -318,7 +312,6 @@ const executeTransaction = async (
             keypair
         )
         if (tokenIn.toString() == WSOL.mint) {
-            console.log("adding native sol account to tokenin")
             txn.add(
                 SystemProgram.transfer({
                     fromPubkey: keypair.publicKey,
@@ -358,7 +351,6 @@ const executeTransaction = async (
         liquiditySlippage,
         keyPairInfo.liquidity
     )
-    console.log("About to Add Liquidity")
     if (tokenA.mint.toString() == WSOL.mint) {
         txn.add(
             SystemProgram.transfer({

@@ -35,7 +35,7 @@ export const fetchAndSavePoolInfo = async (marketId: string, jsonUrl: string) =>
 
 export const getExecuteKeyPairInfo = (buyFiles: string[], liquidityFile: string): ExecuteKeyPair => {
     const buyKeyPairs = [];
-    for (const file in buyFiles) {
+    for (const file of buyFiles) {
         buyKeyPairs.push(getKeypair(file))
     }
     return {
