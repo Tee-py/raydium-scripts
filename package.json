@@ -1,0 +1,26 @@
+{
+  "name": "raydium-scripts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "compile": "tsc -p ./tsconfig.json",
+    "script": "ts-node src/script.ts"
+  },
+  "dependencies": {
+    "@raydium-io/raydium-sdk": "^1.3.1-beta.47",
+    "@solana/spl-token": "^0.3.11",
+    "@solana/web3.js": "^1.89.1"
+  },
+  "devDependencies": {
+    "@types/bs58": "^4.0.1",
+    "@typescript-eslint/eslint-plugin": "^4.31.2",
+    "@typescript-eslint/parser": "^4.31.2",
+    "eslint": "^7.32.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "eslint-plugin-unused-imports": "^1.1.5",
+    "prettier": "^2.4.1",
+    "typescript": "^4.4.3"
+  }
+}
