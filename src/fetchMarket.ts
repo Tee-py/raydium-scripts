@@ -1,6 +1,6 @@
 import { fetchAndSavePoolInfo } from "./utils"
 
-const MARKET_ID = "AdrYYii5M4j3C3LCSswkBFT8BxrwqsC9mktk1r75fLLM"
+const MARKET_ID = "8BnEgHoWFysVcuFFX7QztDmzuH8r5ZFvyP3sYwn1XTh6"
 const JSON_URL = "https://api.raydium.io/v2/sdk/liquidity/mainnet.json"
 fetchAndSavePoolInfo(
     MARKET_ID,
