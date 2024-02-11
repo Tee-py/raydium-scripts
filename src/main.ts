@@ -1,28 +1,22 @@
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import {
-    Liquidity, LiquidityPoolInfo, LiquidityPoolJsonInfo,
-    LiquidityPoolKeys,
+    Liquidity,
+    LiquidityPoolInfo,
+    LiquidityPoolKeys, LOOKUP_TABLE_CACHE,
     Percent,
     Token,
     TOKEN_PROGRAM_ID,
     TokenAmount, WSOL,
+    //MarketV2
 } from "@raydium-io/raydium-sdk";
 import BN from "bn.js";
 import { ExecuteKeyPair, getExecuteKeyPairInfo } from "./utils";
 import { MAINNET_RPC_URL } from "./constants";
-import fs from "fs"
+//import fs from "fs"
 import { createWrappedNativeAccount, getOrCreateAssociatedTokenAccount, createSyncNativeInstruction, NATIVE_MINT } from "@solana/spl-token";
+import {OpenOrders} from "@project-serum/serum";
+import { getPoolInfo } from "./utils";
 
-const getPoolInfo = async (poolId: string) => {
-    type Data = {[key: string]: any}
-    const poolKeysJson: Data = JSON.parse(fs.readFileSync(`pool_info/${poolId}.json`) as unknown as string)
-    for (const [key, value] of Object.entries(poolKeysJson)){
-        if (typeof  value === "string"){
-            poolKeysJson[key] = new PublicKey(poolKeysJson[key])
-        }
-    }
-    return poolKeysJson as LiquidityPoolKeys
-}
 
 const calculateAmountOut = async (
     poolKeys: LiquidityPoolKeys,
@@ -266,104 +260,111 @@ const executeTransaction = async (
     liquidityInputToken: string,
     liquidityInputTokenAmount: number,
     liquiditySlippage: number,
-    poolMarketId: string,
+    ammId: string,
     keyPairInfo: ExecuteKeyPair
 ) => {
-    const poolKeys = await getPoolInfo(poolMarketId);
-    const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
-    const txn = new Transaction();
-    for (const keypair of keyPairInfo.buy) {
-        console.log(`Creating swap Instruction For Address ${keypair.publicKey}`)
-        const {
-            swapIX,
-            tokenInAccount,
-            tokenOutAccount,
-            tokenIn,
-            tokenOut,
-            amountIn,
-            minAmountOut
-        } = await makeSwapInstruction(
-            connection,
-            tokenToBuy,
-            rawSwapAmountIn,
-            swapSlippage,
-            poolKeys,
-            poolInfo,
-            keypair
-        )
-        if (tokenIn.toString() == WSOL.mint) {
-            txn.add(
-                SystemProgram.transfer({
-                    fromPubkey: keypair.publicKey,
-                    toPubkey: tokenInAccount,
-                    lamports: amountIn.raw.toNumber(),
-                }),
-                createSyncNativeInstruction(tokenInAccount, TOKEN_PROGRAM_ID),
+    const ammAccountInfo = await connection.getAccountInfo(
+        new PublicKey(ammId)
+    );
+    if (ammAccountInfo) {
+        const poolKeys = (await getPoolInfo(ammId, connection)) as unknown as LiquidityPoolKeys;
+        const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
+        const txn = new Transaction();
+        for (const keypair of keyPairInfo.buy) {
+            console.log(`Creating swap Instruction For Address ${keypair.publicKey}`)
+            const {
+                swapIX,
+                tokenInAccount,
+                tokenOutAccount,
+                tokenIn,
+                tokenOut,
+                amountIn,
+                minAmountOut
+            } = await makeSwapInstruction(
+                connection,
+                tokenToBuy,
+                rawSwapAmountIn,
+                swapSlippage,
+                poolKeys,
+                poolInfo,
+                keypair
             )
+            if (tokenIn.toString() == WSOL.mint) {
+                txn.add(
+                    SystemProgram.transfer({
+                        fromPubkey: keypair.publicKey,
+                        toPubkey: tokenInAccount,
+                        lamports: amountIn.raw.toNumber(),
+                    }),
+                    createSyncNativeInstruction(tokenInAccount, TOKEN_PROGRAM_ID),
+                )
+            }
+
+            if (tokenOut.toString() == WSOL.mint) {
+                txn.add(
+                    SystemProgram.transfer({
+                        fromPubkey: keypair.publicKey,
+                        toPubkey: tokenOutAccount,
+                        lamports: minAmountOut.raw.toNumber(),
+                    }),
+                    createSyncNativeInstruction(tokenOutAccount, TOKEN_PROGRAM_ID),
+                )
+            }
+            txn.add(swapIX);
+            console.log(`Added swap Instruction For Address ${keypair.publicKey} into transaction`)
         }
 
-        if (tokenOut.toString() == WSOL.mint) {
-            txn.add(
-                SystemProgram.transfer({
-                    fromPubkey: keypair.publicKey,
-                    toPubkey: tokenOutAccount,
-                    lamports: minAmountOut.raw.toNumber(),
-                }),
-                createSyncNativeInstruction(tokenOutAccount, TOKEN_PROGRAM_ID),
-            )
-        }
-        txn.add(swapIX);
-        console.log(`Added swap Instruction For Address ${keypair.publicKey} into transaction`)
-    }
-
-    console.log(`Creating Add Liquidity Instruction For Address ${keyPairInfo.liquidity.publicKey}`)
-    const {
-        addLiqIX,
-        amountA,
-        amountB,
-        tokenA,
-        tokenB,
-        tokenAAccount,
-        tokenBAccount
-    } = await makeAddLiquidityInstruction(
-        connection,
-        poolKeys,
-        poolInfo,
-        liquidityInputToken,
-        liquidityInputTokenAmount,
-        liquiditySlippage,
-        keyPairInfo.liquidity
-    )
-    if (tokenA.mint.toString() == WSOL.mint) {
-        txn.add(
-            SystemProgram.transfer({
-                fromPubkey: keyPairInfo.liquidity.publicKey,
-                toPubkey: tokenAAccount,
-                lamports: amountA.raw.toNumber(),
-            }),
-            createSyncNativeInstruction(tokenAAccount, TOKEN_PROGRAM_ID),
+        console.log(`Creating Add Liquidity Instruction For Address ${keyPairInfo.liquidity.publicKey}`)
+        // const {
+        //     addLiqIX,
+        //     amountA,
+        //     amountB,
+        //     tokenA,
+        //     tokenB,
+        //     tokenAAccount,
+        //     tokenBAccount
+        // } = await makeAddLiquidityInstruction(
+        //     connection,
+        //     poolKeys,
+        //     poolInfo,
+        //     liquidityInputToken,
+        //     liquidityInputTokenAmount,
+        //     liquiditySlippage,
+        //     keyPairInfo.liquidity
+        // )
+        // if (tokenA.mint.toString() == WSOL.mint) {
+        //     txn.add(
+        //         SystemProgram.transfer({
+        //             fromPubkey: keyPairInfo.liquidity.publicKey,
+        //             toPubkey: tokenAAccount,
+        //             lamports: amountA.raw.toNumber(),
+        //         }),
+        //         createSyncNativeInstruction(tokenAAccount, TOKEN_PROGRAM_ID),
+        //     )
+        // }
+        // if (tokenB.mint.toString() == WSOL.mint) {
+        //     txn.add(
+        //         SystemProgram.transfer({
+        //             fromPubkey: keyPairInfo.liquidity.publicKey,
+        //             toPubkey: tokenBAccount,
+        //             lamports: amountB.raw.toNumber(),
+        //         }),
+        //         createSyncNativeInstruction(tokenBAccount, TOKEN_PROGRAM_ID),
+        //     )
+        // }
+        //txn.add(addLiqIX)
+        //console.log(`Add Liquidity Instruction Added to Transaction For Address ${keyPairInfo.liquidity.publicKey}`)
+        console.log("Executing Transactions...")
+        const hash = await connection.sendTransaction(
+            txn,
+            [...keyPairInfo.buy, keyPairInfo.liquidity],
+            { skipPreflight: false, preflightCommitment: "confirmed"}
         )
+        console.log("Transaction Completed Successfully 🎉🚀.")
+        console.log(`Transaction Hash ${hash}`)
+    } else {
+        console.log(`Could not get PoolInfo for AMM: ${ammId}`)
     }
-    if (tokenB.mint.toString() == WSOL.mint) {
-        txn.add(
-            SystemProgram.transfer({
-                fromPubkey: keyPairInfo.liquidity.publicKey,
-                toPubkey: tokenBAccount,
-                lamports: amountB.raw.toNumber(),
-            }),
-            createSyncNativeInstruction(tokenBAccount, TOKEN_PROGRAM_ID),
-        )
-    }
-    txn.add(addLiqIX)
-    console.log(`Add Liquidity Instruction Added to Transaction For Address ${keyPairInfo.liquidity.publicKey}`)
-    console.log("Executing Transactions...")
-    const hash = await connection.sendTransaction(
-        txn,
-        [...keyPairInfo.buy, keyPairInfo.liquidity],
-        { skipPreflight: false, preflightCommitment: "confirmed"}
-    )
-    console.log("Transaction Completed Successfully 🎉🚀.")
-    console.log(`Transaction Hash ${hash}`)
 }
 
 const keypairInfo = getExecuteKeyPairInfo(["wallet"], "wallet");
@@ -373,7 +374,7 @@ const SWAP_SLIPPAGE = 5
 const LIQUIDITY_INPUT_TOKEN_MINT = WSOL.mint
 const LIQUIDITY_INPUT_TOKEN_AMOUNT = 0.02
 const LIQUIDITY_SLIPPAGE = 2
-const POOL_MARKET_ID = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"
+const AMM_ID = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2";
 executeTransaction(
     new Connection(MAINNET_RPC_URL, "confirmed"),
     TOKEN_TO_BUY_MINT,
@@ -382,6 +383,6 @@ executeTransaction(
     LIQUIDITY_INPUT_TOKEN_MINT,
     LIQUIDITY_INPUT_TOKEN_AMOUNT,
     LIQUIDITY_SLIPPAGE,
-    POOL_MARKET_ID,
+    AMM_ID,
     keypairInfo
 ).then((val) => console.log(val))
